@@ -1,32 +1,33 @@
-class PluginMeta:
-    def __init__(self, name: str, version: str, path: str, enabled: bool = False):
-        self.name = name
-        self.version = version
-        self.path = path
-        self.enabled = enabled
+# core/plugin/registry.py
+from dataclasses import dataclass
+from typing import Dict
+
+
+@dataclass
+class PluginState:
+    name: str
+    version: str
+    enabled: bool = False
+
 
 class PluginRegistry:
     def __init__(self):
-        self._plugins = {}
+        self._plugins: Dict[str, PluginState] = {}
 
-    def register(self, plugin_meta: PluginMeta):
-        """注册插件元数据"""
-        self._plugins[plugin_meta.name] = plugin_meta
+    def register(self, state: PluginState) -> None:
+        self._plugins[state.name] = state
 
-    def list_plugins(self):
-        """返回所有插件的列表"""
-        return list(self._plugins.values())
+    def set_enabled(self, name: str, enabled: bool) -> None:
+        self._plugins[name].enabled = enabled
 
-    def get(self, name: str) -> PluginMeta | None:
-        """根据名称获取插件"""
-        return self._plugins.get(name)
+    def is_enabled(self, name: str) -> bool:
+        if name not in self._plugins:
+            raise KeyError(f"Plugin '{name}' not registered")
+        return self._plugins[name].enabled
 
-    def remove(self, name: str) -> bool:
-        """移除插件"""
-        if name in self._plugins:
-            del self._plugins[name]
-            return True
-        return False
-
-# 全局插件注册表实例
-registry = PluginRegistry()
+    def enabled_plugin_names(self) -> list[str]:
+        return [
+            name
+            for name, state in self._plugins.items()
+            if state.enabled
+        ]

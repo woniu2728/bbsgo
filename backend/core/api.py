@@ -1,24 +1,8 @@
-from ninja import NinjaAPI, Schema
-from typing import List
-from .plugin.registry import registry
+"""
+Core API - 插件系统集成核心接口
+职责：提供插件路由挂载等基础功能，不包含插件管理逻辑
+"""
+from ninja import NinjaAPI
 
-api = NinjaAPI()
-
-class PluginListItem(Schema):
-    """插件列表项"""
-    name: str
-    version: str
-    enabled: bool
-
-
-@api.get("/plugins", response=List[PluginListItem])
-def list_plugins(request):
-    """获取插件列表"""
-    plugins = []
-    for plugin in registry.list_plugins():
-        plugins.append({
-            "name": plugin.name,
-            "version": plugin.version,
-            "enabled": plugin.enabled
-        })
-    return plugins
+# 核心API实例
+api = NinjaAPI(title="Forum Core API", version="1.0.0")

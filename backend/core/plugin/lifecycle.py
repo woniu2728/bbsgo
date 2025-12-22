@@ -1,61 +1,28 @@
-import logging
-from typing import Optional
-from .registry import registry
-
-logger = logging.getLogger(__name__)
-
-
-def enable_plugin(name: str) -> bool:
-    """
-    启用插件
-
-    Args:
-        name: 插件名称
-
-    Returns:
-        bool: 操作是否成功
-    """
-    plugin = registry.get(name)
-    if plugin is None:
-        logger.error(f"未找到插件: {name}")
-        return False
-
-    plugin.enabled = True
-    logger.info(f"插件已启用: {name}")
-    return True
+# core/plugin/lifecycle.py
+import importlib
+from core.plugin.registry import PluginRegistry
+from core.plugin.loader import PluginManifest
 
 
-def disable_plugin(name: str) -> bool:
-    """
-    禁用插件
+class PluginLifecycle:
+    def __init__(self, registry: PluginRegistry, api_factory):
+        self._registry = registry
+        self._api_factory = api_factory
 
-    Args:
-        name: 插件名称
+    def enable(self, manifest: PluginManifest):
+        if self._registry.is_enabled(manifest.name):
+            raise RuntimeError(f"Plugin {manifest.name} already enabled")
+        
+        module_path, attr = manifest.entry.split(":")
+        module = importlib.import_module(module_path)
+        plugin_cls = getattr(module, attr)
 
-    Returns:
-        bool: 操作是否成功
-    """
-    plugin = registry.get(name)
-    if plugin is None:
-        logger.error(f"未找到插件: {name}")
-        return False
+        api = self._api_factory(self._registry)
+        plugin = plugin_cls()
+        plugin.on_enable(api)
 
-    plugin.enabled = False
-    logger.info(f"插件已禁用: {name}")
-    return True
+        self._registry.set_enabled(manifest.name, True)
 
-
-def get_plugin_status(name: str) -> Optional[bool]:
-    """
-    获取插件状态
-
-    Args:
-        name: 插件名称
-
-    Returns:
-        bool: 插件是否启用，如果插件不存在返回None
-    """
-    plugin = registry.get(name)
-    if plugin is None:
-        return None
-    return plugin.enabled
+    def disable(self, manifest: PluginManifest):
+        # Phase 1: disable 只改状态，不做 teardown
+        self._registry.set_enabled(manifest.name, False)
