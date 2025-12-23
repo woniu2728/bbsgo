@@ -1,0 +1,7 @@
+{
+  "name": "forum",
+  "routes": [
+    { "path": "/forum", "component": "ForumHome" }
+  ],
+  "menu": { "id": "forum", "label": "Forum", "path": "/forum" }
+}

@@ -1,0 +1,6 @@
+name: ui-shell
+version: 0.1.0
+api_version: 1
+entry: plugins.ui_shell.plugin:Plugin
+description: Frontend shell manifest placeholder
+dependencies: []

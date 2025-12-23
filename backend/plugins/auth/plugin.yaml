@@ -1,0 +1,7 @@
+name: auth
+version: 0.1.0
+api_version: 1
+entry: plugins.auth.plugin:Plugin
+description: Authentication and token APIs
+dependencies:
+  - users

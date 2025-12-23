@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -12,6 +13,7 @@ class Permission(models.Model):
         db_table = "rbac_permissions"
         verbose_name = "权限"
         verbose_name_plural = "权限"
+        app_label = "core"
 
     def __str__(self):
         return f"{self.code}"
@@ -27,6 +29,7 @@ class Role(models.Model):
         db_table = "rbac_roles"
         verbose_name = "角色"
         verbose_name_plural = "角色"
+        app_label = "core"
 
     def __str__(self):
         return self.name
@@ -43,6 +46,23 @@ class RolePermission(models.Model):
         unique_together = ("role", "permission")
         verbose_name = "角色权限"
         verbose_name_plural = "角色权限"
+        app_label = "core"
 
     def __str__(self):
         return f"{self.role.name} - {self.permission.code}"
+
+
+class UserRole(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rbac_roles")
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="users")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = "rbac_user_roles"
+        unique_together = ("user", "role")
+        verbose_name = "用户角色"
+        verbose_name_plural = "用户角色"
+        app_label = "core"
+
+    def __str__(self):
+        return f"{self.user_id} - {self.role.name}"

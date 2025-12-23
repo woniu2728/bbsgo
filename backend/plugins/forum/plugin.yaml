@@ -1,0 +1,9 @@
+name: forum
+version: 1.0.0
+api_version: 1
+entry: plugins.forum.plugin:Plugin
+description: Forum posts and comments
+dependencies:
+  - users
+mount:
+  api_prefix: /forum

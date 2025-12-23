@@ -8,8 +8,11 @@ import yaml
 class PluginManifest:
     name: str
     version: str
-    entry: str
+    entry: str | None
+    dependencies: list[str]
     description: str | None = None
+    api_version: int | None = None
+    mount: dict | None = None
 
 
 class PluginLoader:
@@ -29,12 +32,19 @@ class PluginLoader:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
 
+            dependencies = raw.get("dependencies") or []
+            if not isinstance(dependencies, list):
+                raise ValueError(f"Plugin {raw.get('name')} dependencies must be a list")
+
             manifests.append(
                 PluginManifest(
                     name=raw["name"],
                     version=raw["version"],
-                    entry=raw["entry"],
+                    entry=raw.get("entry"),
+                    dependencies=dependencies,
                     description=raw.get("description"),
+                    api_version=raw.get("api_version"),
+                    mount=raw.get("mount"),
                 )
             )
 

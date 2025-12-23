@@ -1,0 +1,6 @@
+name: users
+version: 0.1.0
+api_version: 1
+entry: plugins.users.plugin:Plugin
+description: User model and CRUD APIs
+dependencies: []
