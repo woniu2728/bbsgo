@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import yaml
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +31,7 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-INSTALLED_APPS = [
+BASE_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -38,16 +39,32 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "core.apps.CoreConfig",
-    "plugins.users",
-    "plugins.auth",
-    "plugins.ui_shell",
-    "plugins.forum",
 ]
+
+PLUGIN_APPS: list[str] = []
+plugins_dir = BASE_DIR / "plugins"
+if plugins_dir.exists():
+    for plugin_dir in plugins_dir.iterdir():
+        if not plugin_dir.is_dir():
+            continue
+        manifest_path = plugin_dir / "plugin.yaml"
+        if not manifest_path.exists():
+            continue
+        try:
+            yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not (plugin_dir / "__init__.py").exists():
+            continue
+        PLUGIN_APPS.append(f"plugins.{plugin_dir.name}")
+
+INSTALLED_APPS = BASE_APPS + PLUGIN_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.plugin.middleware.PluginEnabledMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

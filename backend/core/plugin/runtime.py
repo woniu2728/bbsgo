@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from typing import Iterable
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _registry = PluginRegistry()
 _booted = False
+_db_ready = False
 
 
 def _api_factory(registry: PluginRegistry, plugin_name: str) -> PluginAPI:
@@ -72,9 +74,10 @@ def boot_plugins() -> None:
                 record.version = manifest.version
                 record.save(update_fields=["version"])
             _registry.set_enabled(manifest.name, record.enabled)
+        global _db_ready
+        _db_ready = True
     except (OperationalError, ProgrammingError) as exc:
         logger.warning("Plugin boot skipped (database not ready): %s", exc)
-        return
 
     lifecycle = PluginLifecycle(_registry, _api_factory)
     for manifest in _sort_manifests(manifests):
@@ -94,6 +97,10 @@ def boot_plugins() -> None:
     _booted = True
 
 
+def is_db_ready() -> bool:
+    return _db_ready
+
+
 def enabled_manifests() -> list[dict]:
     results: list[dict] = []
     for state in _registry.list_states():
@@ -111,3 +118,134 @@ def enabled_manifests() -> list[dict]:
             }
         )
     return results
+
+
+def _load_frontend_manifest(manifest: PluginManifest) -> dict | None:
+    if not manifest.root_path:
+        return None
+    manifest_path = manifest.root_path / "frontend" / "manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.warning("Invalid frontend manifest for %s", manifest.name)
+        return None
+
+
+def aggregated_manifests() -> list[dict]:
+    results: list[dict] = []
+    for state in _registry.list_states():
+        if not state.enabled:
+            continue
+        manifest = state.manifest
+        results.append(
+            {
+                "name": manifest.name,
+                "version": manifest.version,
+                "description": manifest.description,
+                "dependencies": manifest.dependencies,
+                "api_version": manifest.api_version,
+                "mount": manifest.mount,
+                "frontend": _load_frontend_manifest(manifest),
+            }
+        )
+    return results
+
+
+def _dependency_map() -> dict[str, list[str]]:
+    return {m.name: list(m.dependencies) for m in _registry.manifests()}
+
+
+def _dependents_map() -> dict[str, list[str]]:
+    dependents: dict[str, list[str]] = {m.name: [] for m in _registry.manifests()}
+    for plugin, deps in _dependency_map().items():
+        for dep in deps:
+            dependents.setdefault(dep, []).append(plugin)
+    return dependents
+
+
+def _enable_with_deps(name: str, visiting: set[str]) -> None:
+    if name in visiting:
+        raise RuntimeError(f"Circular dependency detected at {name}")
+    if _registry.is_enabled(name):
+        return
+    visiting.add(name)
+    manifest = _registry.get_manifest(name)
+    for dep in manifest.dependencies:
+        _enable_with_deps(dep, visiting)
+    visiting.remove(name)
+
+    try:
+        from core.models import PluginRecord
+
+        PluginRecord.objects.update_or_create(
+            name=name,
+            defaults={"version": manifest.version, "enabled": True},
+        )
+    except (OperationalError, ProgrammingError) as exc:
+        logger.warning("Enable plugin skipped (database not ready): %s", exc)
+        return
+
+    _registry.set_enabled(name, True)
+    if manifest.entry:
+        lifecycle = PluginLifecycle(_registry, _api_factory)
+        lifecycle.enable(manifest)
+
+
+def _disable_with_dependents(name: str, visiting: set[str]) -> None:
+    if name in visiting:
+        raise RuntimeError(f"Circular dependency detected at {name}")
+    if not _registry.is_enabled(name):
+        return
+    visiting.add(name)
+    dependents = _dependents_map().get(name, [])
+    for dep_name in dependents:
+        _disable_with_dependents(dep_name, visiting)
+    visiting.remove(name)
+
+    manifest = _registry.get_manifest(name)
+    try:
+        from core.models import PluginRecord
+
+        PluginRecord.objects.update_or_create(
+            name=name,
+            defaults={"version": manifest.version, "enabled": False},
+        )
+    except (OperationalError, ProgrammingError) as exc:
+        logger.warning("Disable plugin skipped (database not ready): %s", exc)
+        return
+
+    _registry.set_enabled(name, False)
+    if _registry.is_active(name):
+        lifecycle = PluginLifecycle(_registry, _api_factory)
+        lifecycle.disable(manifest)
+
+
+def enable_plugin(name: str, cascade: bool = True) -> None:
+    boot_plugins()
+    if cascade:
+        _enable_with_deps(name, set())
+        return
+
+    manifest = _registry.get_manifest(name)
+    missing = [dep for dep in manifest.dependencies if not _registry.is_enabled(dep)]
+    if missing:
+        raise RuntimeError(f"Missing dependencies: {', '.join(missing)}")
+    _enable_with_deps(name, set())
+
+
+def disable_plugin(name: str, cascade: bool = True) -> None:
+    boot_plugins()
+    if cascade:
+        _disable_with_dependents(name, set())
+        return
+
+    if _dependents_map().get(name):
+        enabled_dependents = [
+            dep for dep in _dependents_map().get(name, []) if _registry.is_enabled(dep)
+        ]
+        if enabled_dependents:
+            raise RuntimeError(f"Dependents still enabled: {', '.join(enabled_dependents)}")
+
+    _disable_with_dependents(name, set())

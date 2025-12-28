@@ -113,3 +113,7 @@ python backend/manage.py runserver
 - `GET /api/users/`
 - `POST /api/auth/login`
 - `GET /api/forum/posts`
+
+## 插件开发快速上手
+
+详见 `docs/DEV_GUIDE.md`。

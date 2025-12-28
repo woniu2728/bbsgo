@@ -9,6 +9,7 @@ class PluginState:
     manifest: PluginManifest
     enabled: bool = False
     active: bool = False
+    mounts: list[str] = None
 
 
 class PluginRegistry:
@@ -16,7 +17,14 @@ class PluginRegistry:
         self._plugins: Dict[str, PluginState] = {}
 
     def register(self, manifest: PluginManifest) -> None:
-        self._plugins[manifest.name] = PluginState(manifest=manifest)
+        mounts: list[str] = []
+        if manifest.mount and isinstance(manifest.mount, dict):
+            api_prefix = manifest.mount.get("api_prefix")
+            if api_prefix:
+                if not api_prefix.startswith("/"):
+                    api_prefix = f"/{api_prefix}"
+                mounts.append(api_prefix)
+        self._plugins[manifest.name] = PluginState(manifest=manifest, mounts=mounts)
 
     def manifests(self) -> Iterable[PluginManifest]:
         return [state.manifest for state in self._plugins.values()]
@@ -55,3 +63,15 @@ class PluginRegistry:
 
     def list_states(self) -> list[PluginState]:
         return list(self._plugins.values())
+
+    def add_mount(self, name: str, mount: str) -> None:
+        if name not in self._plugins:
+            raise KeyError(f"Plugin '{name}' not registered")
+        mounts = self._plugins[name].mounts
+        if mount not in mounts:
+            mounts.append(mount)
+
+    def mounts_for(self, name: str) -> list[str]:
+        if name not in self._plugins:
+            raise KeyError(f"Plugin '{name}' not registered")
+        return list(self._plugins[name].mounts)

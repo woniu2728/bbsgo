@@ -9,7 +9,7 @@ class UserOut(Schema):
     is_active: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserCreate(Schema):

@@ -8,7 +8,7 @@ class PostOut(Schema):
     author_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PostCreate(Schema):
@@ -23,7 +23,7 @@ class CommentOut(Schema):
     content: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CommentCreate(Schema):

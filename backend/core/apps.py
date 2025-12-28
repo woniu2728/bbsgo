@@ -6,6 +6,5 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        from core.plugin.runtime import boot_plugins
-
-        boot_plugins()
+        # 避免在应用初始化阶段访问数据库
+        return

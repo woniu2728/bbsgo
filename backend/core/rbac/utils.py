@@ -22,6 +22,29 @@ def check_permission(user: Any, permission_code: str) -> bool:
     return has_permission
 
 
+def get_request_user(request: Any):
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_authenticated", False):
+        return user
+    auth = getattr(request, "auth", None)
+    if auth is not None:
+        return getattr(auth, "user", None)
+    return None
+
+
+def require_permission(permission_code: str):
+    def decorator(func):
+        def wrapper(request, *args, **kwargs):
+            user = get_request_user(request)
+            if not check_permission(user, permission_code):
+                return 403, {"detail": "forbidden"}
+            return func(request, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def get_user_permissions(user: Any) -> list[str]:
     """
     获取用户的所有权限代码列表

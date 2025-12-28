@@ -13,6 +13,7 @@ class PluginManifest:
     description: str | None = None
     api_version: int | None = None
     mount: dict | None = None
+    root_path: Path | None = None
 
 
 class PluginLoader:
@@ -45,6 +46,7 @@ class PluginLoader:
                     description=raw.get("description"),
                     api_version=raw.get("api_version"),
                     mount=raw.get("mount"),
+                    root_path=plugin_dir,
                 )
             )
 
