@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from core.plugin.loader import PluginLoader
+from core.plugin.abi import SUPPORTED_API_VERSIONS
 
 
 class Command(BaseCommand):
@@ -24,6 +25,8 @@ class Command(BaseCommand):
         errors: list[str] = []
         warnings: list[str] = []
         used_prefixes: dict[str, str] = {}
+        used_routes: dict[str, str] = {}
+        used_menu_ids: dict[str, str] = {}
 
         for manifest in manifests:
             plugin_root = manifest.root_path
@@ -34,6 +37,11 @@ class Command(BaseCommand):
             for dep in manifest.dependencies:
                 if dep not in names:
                     errors.append(f"{manifest.name}: missing dependency {dep}")
+
+            if manifest.api_version not in SUPPORTED_API_VERSIONS:
+                errors.append(
+                    f"{manifest.name}: unsupported api_version {manifest.api_version}"
+                )
 
             if manifest.entry:
                 if ":" not in manifest.entry:
@@ -65,9 +73,34 @@ class Command(BaseCommand):
             )
             if frontend_manifest and frontend_manifest.exists():
                 try:
-                    json.loads(frontend_manifest.read_text(encoding="utf-8"))
+                    frontend_data = json.loads(
+                        frontend_manifest.read_text(encoding="utf-8")
+                    )
                 except json.JSONDecodeError as exc:
                     errors.append(f"{manifest.name}: invalid frontend manifest: {exc}")
+                else:
+                    routes = frontend_data.get("routes") or []
+                    if isinstance(routes, list):
+                        for route in routes:
+                            path = route.get("path") if isinstance(route, dict) else None
+                            if not path:
+                                continue
+                            if path in used_routes:
+                                errors.append(
+                                    f"{manifest.name}: route path {path} conflicts with {used_routes[path]}"
+                                )
+                            else:
+                                used_routes[path] = manifest.name
+                    menu = frontend_data.get("menu")
+                    if isinstance(menu, dict):
+                        menu_id = menu.get("id")
+                        if menu_id:
+                            if menu_id in used_menu_ids:
+                                errors.append(
+                                    f"{manifest.name}: menu id {menu_id} conflicts with {used_menu_ids[menu_id]}"
+                                )
+                            else:
+                                used_menu_ids[menu_id] = manifest.name
 
         if warnings:
             self.stdout.write("Warnings:")

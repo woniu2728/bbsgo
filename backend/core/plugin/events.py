@@ -90,3 +90,8 @@ def subscribe(event_name: str, handler: Callable):
 def emit(event_name: str, **kwargs: Any):
     """触发事件"""
     return event_bus.emit(event_name, **kwargs)
+
+
+def unsubscribe(event_name: str, handler: Callable) -> bool:
+    """取消订阅事件"""
+    return event_bus.unsubscribe(event_name, handler)

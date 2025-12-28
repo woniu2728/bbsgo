@@ -117,3 +117,16 @@ python backend/manage.py runserver
 ## 插件开发快速上手
 
 详见 `docs/DEV_GUIDE.md`。
+
+## 前端与后台
+
+- 前端入口：`frontend/index.html`
+- 管理后台：`#/admin`（在前端应用内）
+- 前端开发文档：`docs/FRONTEND_GUIDE.md`
+
+
+## Plugin System Updates
+- Added PluginAPI.unsubscribe for cleanup in on_disable.
+- Added optional on_disable hook for plugin teardown.
+- Enforced ABI version support (currently api_version=1).
+- validate_plugins now checks frontend route/menu conflicts.

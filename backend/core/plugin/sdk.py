@@ -35,5 +35,8 @@ class PluginAPI:
     def subscribe(self, event_name: str, handler):
         events.subscribe(event_name, handler)
 
+    def unsubscribe(self, event_name: str, handler) -> bool:
+        return events.unsubscribe(event_name, handler)
+
     def require_permission(self, permission_code: str):
         return require_permission(permission_code)

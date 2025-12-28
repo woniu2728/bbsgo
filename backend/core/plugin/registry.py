@@ -1,6 +1,6 @@
 # core/plugin/registry.py
 from dataclasses import dataclass
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Any
 from core.plugin.loader import PluginManifest
 
 
@@ -10,6 +10,7 @@ class PluginState:
     enabled: bool = False
     active: bool = False
     mounts: list[str] = None
+    instance: Any = None
 
 
 class PluginRegistry:
@@ -53,6 +54,16 @@ class PluginRegistry:
         if name not in self._plugins:
             raise KeyError(f"Plugin '{name}' not registered")
         return self._plugins[name].active
+
+    def set_instance(self, name: str, instance: Any | None) -> None:
+        if name not in self._plugins:
+            raise KeyError(f"Plugin '{name}' not registered")
+        self._plugins[name].instance = instance
+
+    def get_instance(self, name: str) -> Any | None:
+        if name not in self._plugins:
+            raise KeyError(f"Plugin '{name}' not registered")
+        return self._plugins[name].instance
 
     def enabled_plugin_names(self) -> list[str]:
         return [

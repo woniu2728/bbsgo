@@ -22,9 +22,21 @@ class PluginLifecycle:
         api = self._api_factory(self._registry, manifest.name)
         plugin = plugin_cls()
         plugin.on_enable(api)
-
+        self._registry.set_instance(manifest.name, plugin)
         self._registry.set_active(manifest.name, True)
 
     def disable(self, manifest: PluginManifest):
-        # Phase 1: disable 只改状态，不做 teardown
+        plugin = self._registry.get_instance(manifest.name)
+        if plugin and hasattr(plugin, "on_disable"):
+            api = self._api_factory(self._registry, manifest.name)
+            try:
+                plugin.on_disable(api)
+            except Exception:
+                # Keep disable flow safe while surfacing error in logs
+                import logging
+
+                logging.getLogger(__name__).exception(
+                    "Plugin %s on_disable failed", manifest.name
+                )
         self._registry.set_active(manifest.name, False)
+        self._registry.set_instance(manifest.name, None)

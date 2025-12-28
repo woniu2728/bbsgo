@@ -12,6 +12,8 @@ def check_permission(user: Any, permission_code: str) -> bool:
     """
     if not getattr(user, "is_authenticated", False):
         return False
+    if getattr(user, "is_superuser", False):
+        return True
 
     roles = UserRole.objects.filter(user=user).values_list("role_id", flat=True)
     has_permission = RolePermission.objects.filter(

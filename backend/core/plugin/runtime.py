@@ -10,6 +10,7 @@ from core.plugin.loader import PluginLoader, PluginManifest
 from core.plugin.lifecycle import PluginLifecycle
 from core.plugin.registry import PluginRegistry
 from core.plugin.sdk import PluginAPI
+from core.plugin.abi import SUPPORTED_API_VERSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,13 @@ def boot_plugins() -> None:
     for manifest in _sort_manifests(manifests):
         if not _registry.is_enabled(manifest.name):
             continue
+        if manifest.api_version not in SUPPORTED_API_VERSIONS:
+            logger.warning(
+                "Plugin %s skipped, unsupported api_version: %s",
+                manifest.name,
+                manifest.api_version,
+            )
+            continue
         missing = [dep for dep in manifest.dependencies if not _registry.is_enabled(dep)]
         if missing:
             logger.warning("Plugin %s skipped, missing dependencies: %s", manifest.name, missing)
@@ -153,6 +161,25 @@ def aggregated_manifests() -> list[dict]:
     return results
 
 
+def all_plugin_states() -> list[dict]:
+    results: list[dict] = []
+    for state in _registry.list_states():
+        manifest = state.manifest
+        results.append(
+            {
+                "name": manifest.name,
+                "version": manifest.version,
+                "description": manifest.description,
+                "dependencies": manifest.dependencies,
+                "api_version": manifest.api_version,
+                "mount": manifest.mount,
+                "enabled": state.enabled,
+                "active": state.active,
+            }
+        )
+    return results
+
+
 def _dependency_map() -> dict[str, list[str]]:
     return {m.name: list(m.dependencies) for m in _registry.manifests()}
 
@@ -172,6 +199,10 @@ def _enable_with_deps(name: str, visiting: set[str]) -> None:
         return
     visiting.add(name)
     manifest = _registry.get_manifest(name)
+    if manifest.api_version not in SUPPORTED_API_VERSIONS:
+        raise RuntimeError(
+            f"Unsupported api_version for {name}: {manifest.api_version}"
+        )
     for dep in manifest.dependencies:
         _enable_with_deps(dep, visiting)
     visiting.remove(name)

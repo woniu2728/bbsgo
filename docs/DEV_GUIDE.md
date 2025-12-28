@@ -137,3 +137,18 @@ python backend/manage.py validate_plugins
 ---
 
 如需更复杂功能（RBAC、事件、跨插件调用），请参考 `plugins/forum` 实现。
+
+## 10. 管理后台权限提示
+
+管理员接口默认要求以下权限（superuser 自动放行）：
+- `admin.plugins.manage`
+- `admin.forum.manage`
+- `admin.theme.manage`
+- `admin.seo.manage`
+
+
+## Plugin System Updates
+- Optional lifecycle hook: on_disable(self, api) for cleanup.
+- PluginAPI now exposes unsubscribe(event_name, handler).
+- ABI version is enforced (supported: 1). Unsupported versions fail validation and are skipped at runtime.
+- validate_plugins checks frontend route path and menu id conflicts across plugins.

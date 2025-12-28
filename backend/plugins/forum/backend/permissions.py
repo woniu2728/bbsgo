@@ -11,3 +11,7 @@ def can_post(user) -> bool:
 
 def can_delete(user) -> bool:
     return check_permission(user, "forum.delete")
+
+
+def can_manage_boards(user) -> bool:
+    return check_permission(user, "admin.forum.manage")
